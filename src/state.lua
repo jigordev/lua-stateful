@@ -14,23 +14,20 @@ local State = class("State")
 function State:initialize()
     local proxy = {}
     self._call_stack = {}
-    self.data = setmetatable(proxy, {
-        __index = function(_, k) return proxy[k] end,
-        __newindex = function()
-            error("Direct modification of state is not allowed. Use :set() instead.")
-        end
+    self._data = setmetatable(proxy, {
+        __index = function(_, k) return rawget(proxy, k) end,
     })
-    self.listeners = setmetatable({}, { __mode = "k" })
+    self._listeners = {}
 end
 
 function State:set(key, value)
-    if self.data[key] == value then return end
+    if self._data[key] == value then return end
     if self._call_stack[key] then
         error("Recursive state update detected for key: " .. key)
     end
 
     self._call_stack[key] = true
-    self.data[key] = deep_copy(value)
+    self._data[key] = deep_copy(value)
 
     if self._batching then
         self._batch_updates = self._batch_updates or {}
@@ -48,12 +45,13 @@ end
 
 function State:unset(key)
     self:set(key, nil)
+    self._listeners[key] = nil
 end
 
 function State:_notify_listeners(key, value)
-    if self.listeners[key] then
+    if self._listeners[key] and next(self._listeners[key]) then
         local listeners_snapshot = {}
-        for listener in pairs(self.listeners[key]) do
+        for listener in pairs(self._listeners[key]) do
             table.insert(listeners_snapshot, listener)
         end
         for _, listener in ipairs(listeners_snapshot) do
@@ -63,12 +61,12 @@ function State:_notify_listeners(key, value)
 end
 
 function State:get(key)
-    return self.data[key]
+    return self._data[key]
 end
 
 function State:get_all()
     local data = {}
-    for key, value in pairs(self.data) do
+    for key, value in pairs(self._data) do
         data[key] = deep_copy(value)
     end
     return data
@@ -76,35 +74,38 @@ end
 
 function State:clear()
     local proxy = {}
-    self.data = setmetatable(proxy, getmetatable(self.data))
-    self.listeners = setmetatable({}, { __mode = "v" })
+    self._call_stack = {}
+    self._data = setmetatable(proxy, {
+        __index = function(_, k) return rawget(proxy, k) end,
+    })
+    self._listeners = {}
 end
 
 function State:set_listener(key, listener)
-    if not self.listeners[key] then
-        self.listeners[key] = setmetatable({}, { __mode = "v" })
+    if not self._listeners[key] then
+        self._listeners[key] = {}
     end
     
-    self.listeners[key][listener] = true
+    self._listeners[key][listener] = true
 end
 
 function State:get_listeners(key)
-    if not self.listeners[key] then return {} end
+    if not self._listeners[key] then return {} end
 
     local listeners = {}
-    for listener, _ in pairs(self.listeners[key]) do
+    for listener, _ in pairs(self._listeners[key]) do
         table.insert(listeners, listener)
     end
     return listeners
 end
 
 function State:remove_listener(key, target_listener)
-    local listeners = self.listeners[key]
+    local listeners = self._listeners[key]
     if not listeners then return end
 
     listeners[target_listener] = nil
     if not next(listeners) then
-        self.listeners[key] = nil
+        self._listeners[key] = nil
     end
 end
 
