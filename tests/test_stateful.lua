@@ -1,14 +1,32 @@
 local stateful = require("stateful")
 
 local function test_utils()
-    stateful.use_state("x", 100)
-    stateful.use_state("y", 200)
-    assert(stateful.has("x") and stateful.has("y"))
-    assert(stateful.all()["x"] == 100)
-    stateful.unset("y")
-    assert(not stateful.has("y"))
-    stateful.clear()
-    assert(not stateful.has("x"))
+    local state = stateful.create_state()
+    state:set("x", 100)
+    state:set("y", 200)
+    assert(state:has("x") and state:has("y"))
+    assert(state:get_all()["x"] == 100)
+    state:unset("y")
+    assert(not state:has("y"))
+    state:clear()
+    assert(not state:has("x"))
+end
+
+local function test_batching()
+    local state = stateful.create_state()
+    local count = 0
+    state:set("x", 10)
+    state:set_listener("x", function(value)
+        count = count + 1
+    end)
+    state:begin_batch()
+    state:set("x", 11)
+    state:set("x", 12)
+    state:set("x", 13)
+    assert(count == 0)
+    state:end_batch()
+    assert(count == 1)
+    assert(state:get("x") == 13)
 end
 
 local function test_getter_setter()
@@ -40,6 +58,7 @@ end
 
 local function runtests()
     test_utils()
+    test_batching()
     test_getter_setter()
     test_effect()
     test_cleanup()

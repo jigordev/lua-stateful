@@ -1,5 +1,5 @@
 package = "lua-stateful"
-version = "1.0-1"
+version = "2.0-1"
 source = {
    url = "git://github.com/jigordev/lua-stateful.git"
 }
