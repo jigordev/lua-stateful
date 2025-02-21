@@ -13,6 +13,7 @@ local State = class("State")
 
 function State:initialize()
     local proxy = {}
+    self._call_stack = {}
     self.data = setmetatable(proxy, {
         __index = function(_, k) return proxy[k] end,
         __newindex = function()
@@ -22,15 +23,13 @@ function State:initialize()
     self.listeners = setmetatable({}, { __mode = "k" })
 end
 
-local call_stack = {}
-
 function State:set(key, value)
     if self.data[key] == value then return end
-    if call_stack[key] then
+    if self._call_stack[key] then
         error("Recursive state update detected for key: " .. key)
     end
 
-    call_stack[key] = true
+    self._call_stack[key] = true
     self.data[key] = deep_copy(value)
 
     if self._batching then
@@ -40,12 +39,24 @@ function State:set(key, value)
         self:_notify_listeners(key, value)
     end
 
-    call_stack[key] = nil
+    self._call_stack[key] = nil
+end
+
+function State:has(key)
+    return self:get(key) ~= nil
+end
+
+function State:unset(key)
+    self:set(key, nil)
 end
 
 function State:_notify_listeners(key, value)
     if self.listeners[key] then
-        for listener, _ in pairs(self.listeners[key]) do
+        local listeners_snapshot = {}
+        for listener in pairs(self.listeners[key]) do
+            table.insert(listeners_snapshot, listener)
+        end
+        for _, listener in ipairs(listeners_snapshot) do
             listener(value)
         end
     end 
@@ -109,8 +120,4 @@ function State:end_batch()
     self._batch_updates = nil
 end
 
-return {
-    new = function ()
-        return State:new()
-    end
-}
+return State
