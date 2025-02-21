@@ -12,10 +12,11 @@ luarocks install stateful
 
 ## Features
 
+- Create instances of individual states
 - Store and retrieve application state dynamically
-- React to state changes using effects
+- React to state changes using listeners
 - Clear or reset state values
-- Manage global state in a structured way
+- React-inspired state manipulation functions
 
 ## Usage
 
@@ -39,22 +40,26 @@ print(counter_get()) -- Output: 10
 ### Checking if a State Exists
 
 ```lua
-print(stateful.has("counter")) -- Output: true
-print(stateful.has("non_existent")) -- Output: false
+
+local state = stateful.create_state()
+state:set("counter", 0)
+
+print(state.has("counter")) -- Output: true
+print(state.has("non_existent")) -- Output: false
 ```
 
 ### Removing a State
 
 ```lua
-stateful.unset("counter")
-print(stateful.has("counter")) -- Output: false
+state:unset("counter")
+print(state:has("counter")) -- Output: false
 ```
 
 ### Clearing All States
 
 ```lua
-stateful.clear()
-print(stateful.all()) -- Output: {}
+state:clear()
+print(state:all()) -- Output: {}
 ```
 
 ### Using Effects (Reactivity)
@@ -76,9 +81,10 @@ count_set(15) -- No output since the effect was removed
 ### Retrieving All States
 
 ```lua
-local name_get, name_set = stateful.use_state("name", "Lua")
+local state = stateful.create_state()
+state:set("name", "Lua")
 
-for key, value in pairs(stateful.all()) do
+for key, value in pairs(state:all()) do
     print(key, value)
 end
 -- Output: name Lua
