@@ -1,31 +1,18 @@
-local state = require("stateful.state")
+local State = require("stateful.state")
 
 local stateful = {}
 
-function stateful.has(key)
-    return state:get(key) ~= nil
-end
-
-function stateful.unset(key)
-    state:set(key, nil)
-end
-
-function stateful.clear()
-    state:clear()
-end
-
-function stateful.all()
-    return state:get_all()
+function stateful.create_state()
+    return State:new()
 end
 
 function stateful.use_state(key, value)
-    if state:get(key) == nil then
-        state:set(key, value)
-    end
+    local state = State:new()
+
+    state:set(key, value)
 
     local getter = function()
-        local v = state:get(key)
-        return type(v) == "function" and v() or v
+        return state:get(key)
     end
 
     local setter = function(new_value)
